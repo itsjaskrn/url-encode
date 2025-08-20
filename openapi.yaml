@@ -1,0 +1,30 @@
+openapi: 3.1.0
+info:
+  title: URL Encoder
+  version: "1.0.0"
+  description: Encode site URLs safely for Google Search Console API
+servers:
+  - url: https://your-vercel-project.vercel.app
+paths:
+  /api/encode:
+    get:
+      operationId: encodeUrl
+      summary: Encode a URL for GSC compatibility
+      parameters:
+        - in: query
+          name: url
+          required: true
+          schema:
+            type: string
+            description: Raw domain or URL to encode
+      responses:
+        "200":
+          description: Encoded URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  encodedUrl:
+                    type: string
+                    description: Encoded URL string safe for GSC API

@@ -27,32 +27,31 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Missing or invalid URL parameter' });
   }
 
-  const inputUrl = url.trim().toLowerCase().replace(/\/+$/, '');
+  const inputUrl = url.trim().toLowerCase(); // ✅ Keep trailing slash
   const encodedUrl = encodeURIComponent(inputUrl);
 
-  // Fallback: always return encoded URL
   const responsePayload = {
     encodedUrl,
     siteUrl: inputUrl, // default to full URL
   };
 
-  // Optional: try to fetch verified properties and resolve siteUrl
+  // Try to resolve correct GSC property if token is available
   if (accessToken) {
     try {
-      const listRes = await fetch('https://searchconsole.googleapis.com/webmasters/v3/sites', {
+      const gscRes = await fetch('https://searchconsole.googleapis.com/webmasters/v3/sites', {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
 
-      if (listRes.ok) {
-        const { siteEntry } = await listRes.json();
+      if (gscRes.ok) {
+        const { siteEntry } = await gscRes.json();
 
-        // Try full match
+        // Try exact match with URL-prefix property
         const fullMatch = siteEntry.find(site => site.siteUrl.toLowerCase() === inputUrl);
         if (fullMatch) {
           responsePayload.siteUrl = fullMatch.siteUrl;
           responsePayload.encodedUrl = encodeURIComponent(fullMatch.siteUrl);
         } else {
-          // Try sc-domain fallback
+          // Try fallback to sc-domain
           const domain = inputUrl.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0];
           const domainProp = `sc-domain:${domain}`;
           const domainMatch = siteEntry.find(site => site.siteUrl === domainProp);
@@ -62,15 +61,16 @@ export default async function handler(req, res) {
           }
         }
       } else {
-        responsePayload.warning = 'Failed to fetch site list from GSC';
+        responsePayload.warning = 'Failed to fetch GSC site list';
       }
-    } catch (error) {
-      responsePayload.warning = 'Error while resolving verified sites';
+    } catch (err) {
+      responsePayload.warning = 'Error during GSC ownership check';
     }
   } else {
-    responsePayload.warning = 'Access token not provided; skipping ownership check';
+    responsePayload.warning = 'Access token missing; used raw URL only';
   }
 
   return res.status(200).json(responsePayload);
 }
+
 
